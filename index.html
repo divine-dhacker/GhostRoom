@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GHOSTROOM | Anonymous Social</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root { --bg: #050505; --card: #121212; --accent: #ff2d55; --border: rgba(255, 255, 255, 0.08); }
+        body { background-color: var(--bg); color: white; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; overflow: hidden; height: 100dvh; -webkit-tap-highlight-color: transparent; }
+        
+        .screen { display: none; height: 100%; flex-direction: column; animation: fadeIn 0.3s ease-out; }
+        .screen.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 28px; transition: transform 0.2s; position: relative; overflow: hidden; }
+        .card:active { transform: scale(0.98); }
+
+        /* Modern Loading States */
+        .loading-shimmer { background: linear-gradient(90deg, #121212 25%, #1a1a1a 50%, #121212 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; position: absolute; inset: 0; z-index: 10; display: none; pointer-events: none; }
+        .is-loading .loading-shimmer { display: block; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .msg-bubble { max-width: 85%; padding: 14px 18px; border-radius: 24px; font-size: 14px; position: relative; }
+        .msg-ghost { filter: blur(12px); cursor: pointer; background: linear-gradient(45deg, #1a1a1a, #2a2a2a); transition: filter 0.3s; }
+        .msg-ghost.revealing { filter: blur(0); border: 1px solid var(--accent); }
+        .msg-burned { opacity: 0.15; filter: grayscale(1) blur(2px); pointer-events: none; }
+
+        nav { position: fixed; bottom: 0; left: 0; right: 0; height: 85px; background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(25px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding-bottom: 20px; z-index: 50; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #444; gap: 4px; transition: 0.3s; cursor: pointer; }
+        .nav-item.active { color: white; }
+
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 10px 20px; border-radius: 50px; font-weight: 800; font-size: 10px; z-index: 1000; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <!-- HOME SCREEN -->
+    <div id="screen-home" class="screen active p-6 overflow-y-auto pb-32 hide-scroll">
+        <header class="mt-8 mb-10 flex justify-between items-start">
+            <div>
+                <h1 class="text-4xl font-extrabold tracking-tighter italic">GHOSTROOM</h1>
+                <p class="text-white/30 text-[10px] mt-1 font-bold tracking-widest uppercase" id="user-id-display">Syncing...</p>
+            </div>
+            <div id="connection-dot" class="w-2 h-2 rounded-full bg-green-500 mt-4 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+        </header>
+
+        <div class="grid grid-cols-2 gap-4 mb-10">
+            <button id="btn-create-private" class="card p-6 text-left relative overflow-hidden">
+                <div class="loading-shimmer"></div>
+                <i data-lucide="zap" class="text-pink-500 mb-3"></i>
+                <h3 class="font-bold text-sm">Secret Room</h3>
+                <p class="text-[10px] text-white/30 font-black uppercase tracking-wider">Burn in 24h</p>
+            </button>
+            <button id="btn-create-community" class="card p-6 text-left relative overflow-hidden">
+                <div class="loading-shimmer"></div>
+                <i data-lucide="flame" class="text-orange-500 mb-3"></i>
+                <h3 class="font-bold text-sm">Public Vibe</h3>
+                <p class="text-[10px] text-white/30 font-black uppercase tracking-wider">Global Chat</p>
+            </button>
+        </div>
+
+        <div class="mb-8">
+            <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 mb-4 px-2">Global Pulse</h4>
+            <div id="pulse-leaderboard" class="space-y-3"></div>
+        </div>
+
+        <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 mb-4 px-2">Recent Frequency</h4>
+        <div id="history-container" class="space-y-3"></div>
+    </div>
+
+    <!-- GIST FEED -->
+    <div id="screen-gist" class="screen overflow-y-auto pb-32 hide-scroll">
+        <header class="sticky top-0 p-6 bg-black/80 backdrop-blur-xl z-10 flex justify-between items-end border-b border-white/5">
+            <div>
+                <h2 class="text-2xl font-black italic">GistMe</h2>
+                <p class="text-[10px] text-white/30 font-black uppercase tracking-widest">Global VOID Feed</p>
+            </div>
+            <button onclick="window.openGistModal()" class="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
+                <i data-lucide="plus"></i>
+            </button>
+        </header>
+        <div id="gist-feed" class="p-4 space-y-6"></div>
+    </div>
+
+    <!-- CHAT VIEW -->
+    <div id="screen-chat" class="screen">
+        <header class="p-6 flex items-center justify-between border-b border-white/5 bg-black/50 backdrop-blur-lg">
+            <button onclick="window.location.hash = ''" class="text-white/30"><i data-lucide="chevron-left"></i></button>
+            <div class="text-center">
+                <p class="text-[10px] font-black text-pink-500 uppercase tracking-[0.2em]" id="chat-title">#ROOM</p>
+                <p class="text-[9px] text-white/30 font-bold" id="chat-timer">LIFETIME: --:--</p>
+            </div>
+            <button id="btn-copy-link" class="p-3 bg-white/5 rounded-2xl border border-white/10"><i data-lucide="share-2" size="16"></i></button>
+        </header>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 hide-scroll"></div>
+        <div class="p-4 pb-8 bg-black">
+            <form id="chat-form" class="flex items-center gap-2 p-2 bg-white/5 border border-white/10 rounded-[30px]">
+                <button type="button" id="btn-ghost-mode" class="w-10 h-10 rounded-full flex items-center justify-center text-white/20">
+                    <i data-lucide="ghost" size="18"></i>
+                </button>
+                <input id="chat-input" class="flex-1 bg-transparent py-3 px-1 text-sm outline-none" placeholder="Whisper something...">
+                <button type="submit" class="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center">
+                    <i data-lucide="arrow-up" size="20"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal-gist" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl p-6 hidden flex-col items-center justify-center">
+        <div class="w-full max-w-sm card p-8">
+            <button onclick="window.closeGistModal()" class="absolute top-6 right-6 text-white/20"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-black mb-6 italic">Post Gist</h2>
+            <textarea id="gist-text-input" class="w-full h-32 bg-transparent text-white outline-none text-lg resize-none mb-6" placeholder="What's the tea?"></textarea>
+            <button id="btn-submit-gist" class="w-full h-14 bg-white text-black rounded-2xl font-black text-sm relative overflow-hidden">
+                <div class="loading-shimmer"></div>
+                PUBLISH TO VOID
+            </button>
+        </div>
+    </div>
+
+    <nav id="bottom-nav">
+        <div onclick="window.changeScreen('home')" id="nav-home" class="nav-item active"><i data-lucide="hash"></i><span class="text-[8px] font-black uppercase tracking-widest">Rooms</span></div>
+        <div onclick="window.changeScreen('gist')" id="nav-gist" class="nav-item"><i data-lucide="globe"></i><span class="text-[8px] font-black uppercase tracking-widest">GistMe</span></div>
+    </nav>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCEUDD0iB4iGFSDoC0a3wCXF8PT098Su3w",
+            authDomain: "anonymous-messaging-f93c0.firebaseapp.com",
+            projectId: "anonymous-messaging-f93c0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'ghostroom_ultra_v2';
+
+        let user = null;
+        let activeRoomId = null;
+        let isGhostMode = false;
+        let isProcessing = false;
+
+        const toast = (m) => {
+            const t = document.createElement('div'); t.className = 'toast'; t.textContent = m;
+            document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+        };
+
+        const changeScreen = (name) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${name}`).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(`nav-${name}`)?.classList.add('active');
+            document.getElementById('bottom-nav').style.display = name === 'chat' ? 'none' : 'flex';
+        };
+        window.changeScreen = changeScreen;
+
+        onAuthStateChanged(auth, u => {
+            if (u) {
+                user = u;
+                document.getElementById('user-id-display').textContent = `UID: ${u.uid.substring(0,8).toUpperCase()}`;
+                initHistory();
+                initGists();
+                checkUrl();
+            } else {
+                signInAnonymously(auth);
+            }
+        });
+
+        const checkUrl = () => {
+            const hash = window.location.hash.slice(1);
+            if(hash) openRoom(hash);
+            else changeScreen('home');
+        };
+        window.onhashchange = checkUrl;
+
+        // ROOM MGMT
+        const createRoom = async (type) => {
+            if(isProcessing) return;
+            isProcessing = true;
+            const btn = type === 'private' ? 'btn-create-private' : 'btn-create-community';
+            document.getElementById(btn).classList.add('is-loading');
+
+            const roomId = type === 'community' ? 'global' : Math.random().toString(36).substring(2, 10);
+            const expires = Date.now() + (24 * 60 * 60 * 1000);
+
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), {
+                    type, expires, createdAt: serverTimestamp()
+                }, { merge: true });
+
+                await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', roomId), {
+                    roomId, type, expires, timestamp: Date.now()
+                });
+
+                window.location.hash = roomId;
+            } catch(e) { toast("Failed to manifest room"); }
+
+            isProcessing = false;
+            document.getElementById(btn).classList.remove('is-loading');
+        };
+
+        const openRoom = async (id) => {
+            activeRoomId = id;
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id));
+            
+            if(!snap.exists() || (snap.data().expires && snap.data().expires < Date.now())) {
+                toast("Room vanished into thin air");
+                window.location.hash = '';
+                return;
+            }
+
+            const data = snap.data();
+            document.getElementById('chat-title').textContent = `#${id.toUpperCase()}`;
+            
+            // Timer logic
+            if(data.expires) {
+                const updateTimer = () => {
+                    const diff = data.expires - Date.now();
+                    if(diff <= 0) { window.location.hash = ''; return; }
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    document.getElementById('chat-timer').textContent = `LIFETIME: ${h}h ${m}m LEFT`;
+                };
+                updateTimer();
+                setInterval(updateTimer, 60000);
+            } else {
+                document.getElementById('chat-timer').textContent = `LIFETIME: PERMANENT`;
+            }
+
+            changeScreen('chat');
+            syncMessages(id);
+        };
+
+        // CHAT SYNC
+        let unsubChat = null;
+        const syncMessages = (id) => {
+            if(unsubChat) unsubChat();
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'messages'), orderBy('createdAt', 'asc'), limit(50));
+            unsubChat = onSnapshot(q, snap => {
+                const cont = document.getElementById('chat-messages');
+                cont.innerHTML = '';
+                snap.docs.forEach(d => {
+                    const m = d.data();
+                    const isMe = m.sender === user.uid;
+                    const burned = m.status === 'burned';
+                    const div = document.createElement('div');
+                    div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} w-full`;
+                    div.innerHTML = `
+                        <div class="msg-bubble ${isMe ? 'bg-pink-600' : 'bg-white/5 border border-white/10'} 
+                             ${m.isGhost && !burned ? 'msg-ghost' : ''} ${burned ? 'msg-burned' : ''}" id="m-${d.id}">
+                            ${burned ? 'MESSAGE BURNED' : m.text.replace(/</g, '&lt;')}
+                        </div>`;
+                    
+                    if(m.isGhost && !burned) div.onclick = () => reveal(id, d.id);
+                    cont.appendChild(div);
+                });
+                cont.scrollTop = cont.scrollHeight;
+            });
+        };
+
+        const reveal = (rid, mid) => {
+            const el = document.getElementById(`m-${mid}`);
+            el.classList.add('revealing');
+            setTimeout(() => {
+                updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rid, 'messages', mid), { status: 'burned' });
+            }, 5000);
+        };
+
+        // GIST SYNC (The Global Void)
+        const initGists = () => {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'gists'), orderBy('createdAt', 'desc'), limit(30));
+            onSnapshot(q, snap => {
+                const cont = document.getElementById('gist-feed');
+                const pulse = document.getElementById('pulse-leaderboard');
+                cont.innerHTML = '';
+                
+                const gists = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                // Pulse Leaderboard
+                const sorted = [...gists].sort((a,b) => (b.vibes || 0) - (a.vibes || 0)).slice(0,3);
+                pulse.innerHTML = '';
+                sorted.forEach((g, i) => {
+                    pulse.innerHTML += `
+                        <div class="card p-4 flex justify-between items-center bg-white/[0.02]">
+                            <span class="text-[10px] font-black text-white/20 italic">0${i+1}</span>
+                            <p class="text-[11px] font-bold truncate max-w-[180px]">${g.text}</p>
+                            <span class="text-[9px] font-black text-pink-500">${g.vibes || 0} VIBES</span>
+                        </div>`;
+                });
+
+                // Global Feed
+                gists.forEach(g => {
+                    cont.innerHTML += `
+                        <div class="card p-6">
+                            <div class="flex items-center gap-2 mb-4">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-pink-500 to-indigo-500"></div>
+                                <span class="text-[10px] font-black uppercase text-white/30 tracking-widest">Anon_${g.sender?.substring(0,4)}</span>
+                            </div>
+                            <p class="text-sm leading-relaxed mb-4 text-white/80">${g.text.replace(/</g, '&lt;')}</p>
+                            <div class="flex gap-4 pt-4 border-t border-white/5">
+                                <button onclick="window.vibe('${g.id}', ${g.vibes || 0})" class="text-[10px] font-black text-pink-500 uppercase tracking-tighter flex items-center gap-1">
+                                    <i data-lucide="heart" size="12"></i> ${g.vibes || 0} Vibes
+                                </button>
+                                <button onclick="window.echo('${g.id}')" class="text-[10px] font-black text-white/20 uppercase tracking-tighter flex items-center gap-1">
+                                    <i data-lucide="share" size="12"></i> Echo
+                                </button>
+                            </div>
+                        </div>`;
+                });
+                lucide.createIcons();
+            });
+        };
+
+        window.vibe = (id, cur) => {
+            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'gists', id), { vibes: cur + 1 });
+        };
+        window.echo = (id) => {
+            navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#gist-' + id);
+            toast("Echoed to Clipboard");
+        };
+
+        // UI LISTENERS
+        document.getElementById('btn-create-private').onclick = () => createRoom('private');
+        document.getElementById('btn-create-community').onclick = () => createRoom('community');
+        
+        document.getElementById('btn-ghost-mode').onclick = () => {
+            isGhostMode = !isGhostMode;
+            document.getElementById('btn-ghost-mode').classList.toggle('text-pink-500', isGhostMode);
+        };
+
+        document.getElementById('chat-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const val = input.value.trim();
+            if(!val || isProcessing) return;
+            isProcessing = true;
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId, 'messages'), {
+                text: val, sender: user.uid, isGhost: isGhostMode, createdAt: serverTimestamp()
+            });
+            input.value = '';
+            isProcessing = false;
+        };
+
+        window.openGistModal = () => document.getElementById('modal-gist').classList.remove('hidden');
+        window.closeGistModal = () => document.getElementById('modal-gist').classList.add('hidden');
+
+        document.getElementById('btn-submit-gist').onclick = async () => {
+            const input = document.getElementById('gist-text-input');
+            if(!input.value.trim() || isProcessing) return;
+            isProcessing = true;
+            document.getElementById('btn-submit-gist').classList.add('is-loading');
+            
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'gists'), {
+                text: input.value, sender: user.uid, vibes: 0, createdAt: serverTimestamp()
+            });
+            
+            input.value = '';
+            window.closeGistModal();
+            isProcessing = false;
+            document.getElementById('btn-submit-gist').classList.remove('is-loading');
+        };
+
+        const initHistory = () => {
+            onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), snap => {
+                const cont = document.getElementById('history-container');
+                cont.innerHTML = '';
+                snap.docs.forEach(d => {
+                    const h = d.data();
+                    if(h.expires && h.expires < Date.now()) return;
+                    cont.innerHTML += `
+                        <div class="card p-5 flex justify-between items-center cursor-pointer" onclick="window.location.hash='${h.roomId}'">
+                            <div class="flex items-center gap-3">
+                                <div class="w-1.5 h-1.5 rounded-full ${h.type === 'private' ? 'bg-pink-500' : 'bg-orange-500'}"></div>
+                                <div>
+                                    <p class="font-bold text-sm">#${h.roomId.toUpperCase()}</p>
+                                    <p class="text-[8px] text-white/20 font-black uppercase">${h.type} room</p>
+                                </div>
+                            </div>
+                            <i data-lucide="chevron-right" size="14"></i>
+                        </div>`;
+                });
+                lucide.createIcons();
+            });
+        };
+
+        document.getElementById('btn-copy-link').onclick = () => {
+            navigator.clipboard.writeText(window.location.href);
+            toast("Room Link Copied");
+        };
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+
