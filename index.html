@@ -160,7 +160,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCEUDD0iB4iGFSDoC0a3wCXF8PT098Su3w",
@@ -247,9 +247,19 @@
 
         // CHAT ENGINE
         let unsubChat = null;
-        const initChat = (roomId) => {
+        const initChat = async (roomId) => {
             currentRoomId = roomId;
             window.changeScreen('chat');
+
+            // Add to history. The `loadHistory` function uses `onSnapshot`, so
+            // this will automatically update the UI.
+            if(user) {
+                const roomDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId));
+                if (roomDoc.exists()) {
+                    const roomType = roomDoc.data().type || 'private';
+                    setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', roomId), { roomId: roomId, type: roomType, timestamp: Date.now() });
+                }
+            }
             document.getElementById('chat-subtitle').textContent = `#${roomId.toUpperCase()}`;
             const msgRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId, 'messages');
             const q = query(msgRef, orderBy('createdAt', 'asc'), limit(60));
@@ -391,6 +401,11 @@
         // EVENT BINDINGS
         document.getElementById('btn-create-private').onclick = () => createRoom('private');
         document.getElementById('btn-create-community').onclick = () => createRoom('community');
+
+        document.getElementById('btn-copy-link').onclick = () => {
+            navigator.clipboard.writeText(window.location.href);
+            showToast("LINK COPIED TO CLIPBOARD");
+        };
         
         document.getElementById('btn-ghost').onclick = () => {
             isGhostMode = !isGhostMode;
