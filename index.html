@@ -108,6 +108,7 @@
             <div class="text-center">
                 <p class="text-[10px] font-black text-pink-500 uppercase tracking-[0.2em]" id="chat-title">Whisper Room</p>
                 <p class="text-[9px] text-white/20 font-bold" id="chat-subtitle">#000000</p>
+                <div class="text-[8px] text-white/20 font-bold mt-1 uppercase tracking-wider">Messages vanish after 24 hours</div>
             </div>
             <button id="btn-copy-link" class="p-3 bg-white/5 rounded-2xl border border-white/10"><i data-lucide="share-2" size="16"></i></button>
         </header>
@@ -119,6 +120,13 @@
                 <p id="reply-text" class="text-white/80 italic truncate max-w-[200px]"></p>
             </div>
             <button id="btn-cancel-reply" class="p-2"><i data-lucide="x" size="14"></i></button>
+        </div>
+
+        <div id="edit-preview" class="hidden px-4 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center text-[10px]">
+            <div class="border-l-2 border-yellow-500 pl-3">
+                <p class="text-white/40 uppercase font-black">Editing Message</p>
+            </div>
+            <button id="btn-cancel-edit" class="p-2"><i data-lucide="x" size="14"></i></button>
         </div>
 
         <div class="p-4 pb-8 bg-black">
@@ -179,6 +187,7 @@
         let replyingTo = null;
         let pendingImage = null;
         let isProcessing = false;
+        let editingMessageId = null;
 
         lucide.createIcons();
 
@@ -271,7 +280,17 @@
                 snap.docs.forEach(docSnap => {
                     const m = { id: docSnap.id, ...docSnap.data() };
                     const isMe = m.sender === user.uid;
-                    const isBurned = m.status === 'burned';
+
+                    const messageTimestamp = m.createdAt?.toDate();
+                    let isExpired = false;
+                    if (messageTimestamp) {
+                        const twentyFourHoursAgo = new Date().getTime() - (24 * 60 * 60 * 1000);
+                        if (messageTimestamp.getTime() < twentyFourHoursAgo) {
+                            isExpired = true;
+                        }
+                    }
+
+                    const isBurned = m.status === 'burned' || isExpired;
                     
                     const wrapper = document.createElement('div');
                     wrapper.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} w-full`;
@@ -282,6 +301,7 @@
                              ${m.isGhost && !isBurned ? 'msg-ghost' : ''} ${isBurned ? 'msg-burned' : ''}" 
                              id="msg-${m.id}">
                             ${isBurned ? 'VANISHED' : sanitize(m.text)}
+                            ${m.edited ? '<span class="text-[9px] text-white/30 italic ml-2">(edited)</span>' : ''}
                         </div>`;
 
                     // Swipe to Reply
@@ -297,6 +317,12 @@
                     wrapper.onclick = () => {
                         if (m.isGhost && !isBurned) revealGhost(m.id);
                     };
+
+                    if (isMe) {
+                        wrapper.ondblclick = () => {
+                            editMessage(m);
+                        };
+                    }
 
                     container.appendChild(wrapper);
                 });
@@ -318,6 +344,23 @@
             document.getElementById('reply-text').textContent = m.text;
             document.getElementById('reply-preview').classList.remove('hidden');
             document.getElementById('chat-input').focus();
+        };
+
+        const editMessage = (m) => {
+            editingMessageId = m.id;
+            document.getElementById('chat-input').value = m.text;
+            document.getElementById('edit-preview').classList.remove('hidden');
+            document.getElementById('btn-chat-send').innerHTML = '<i data-lucide="check" size="20"></i>';
+            lucide.createIcons();
+            document.getElementById('chat-input').focus();
+        };
+
+        const cancelEdit = () => {
+            editingMessageId = null;
+            document.getElementById('chat-input').value = '';
+            document.getElementById('edit-preview').classList.add('hidden');
+            document.getElementById('btn-chat-send').innerHTML = '<i data-lucide="arrow-up" size="20"></i>';
+            lucide.createIcons();
         };
 
         // GISTME CORE
@@ -420,16 +463,25 @@
             isProcessing = true;
             document.getElementById('btn-chat-send').disabled = true;
 
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages'), {
-                text: input.value, sender: user.uid, createdAt: serverTimestamp(),
-                isGhost: isGhostMode, status: 'active',
-                replyTo: replyingTo ? { text: replyingTo.text } : null
-            });
+            if (editingMessageId) {
+                const messageRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages', editingMessageId);
+                await updateDoc(messageRef, {
+                    text: input.value,
+                    edited: true
+                });
+                cancelEdit();
+            } else {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages'), {
+                    text: input.value, sender: user.uid, createdAt: serverTimestamp(),
+                    isGhost: isGhostMode, status: 'active',
+                    replyTo: replyingTo ? { text: replyingTo.text } : null
+                });
+                input.value = '';
+                input.style.height = 'auto';
+                replyingTo = null;
+                document.getElementById('reply-preview').classList.add('hidden');
+            }
 
-            input.value = '';
-            input.style.height = 'auto';
-            replyingTo = null;
-            document.getElementById('reply-preview').classList.add('hidden');
             isProcessing = false;
             document.getElementById('btn-chat-send').disabled = false;
         };
@@ -501,6 +553,8 @@
             replyingTo = null;
             document.getElementById('reply-preview').classList.add('hidden');
         };
+
+        document.getElementById('btn-cancel-edit').onclick = cancelEdit;
     </script>
 </body>
 </html>
