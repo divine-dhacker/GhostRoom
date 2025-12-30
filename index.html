@@ -30,6 +30,24 @@
         .offline-banner { position: fixed; top: 0; left: 0; right: 0; background: #ff2d55; color: white; font-size: 10px; font-weight: 800; text-align: center; padding: 4px; z-index: 1000; display: none; text-transform: uppercase; letter-spacing: 2px; }
         .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 10px 20px; border-radius: 50px; font-weight: 800; font-size: 10px; z-index: 200; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            animation: spin 1s linear infinite;
+            border: 2px solid rgba(0,0,0,0.1);
+            border-left-color: black;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+        }
+        .spinner-sm {
+            animation: spin 0.8s linear infinite;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-left-color: white;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            display: inline-block;
+        }
     </style>
 
     <script>
@@ -232,6 +250,8 @@
         const createRoom = async (type) => {
             if(!user || isProcessing) return;
             isProcessing = true;
+            document.getElementById('btn-create-private').disabled = true;
+            document.getElementById('btn-create-community').disabled = true;
             document.getElementById(`load-${type}`).classList.remove('hidden');
 
             try {
@@ -239,10 +259,14 @@
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id), { type, createdAt: serverTimestamp() }, { merge: true });
                 await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', id), { roomId: id, type, timestamp: Date.now() });
                 window.location.hash = id;
-            } catch (e) { showToast("Signal Failed"); }
-            
-            isProcessing = false;
-            document.getElementById(`load-${type}`).classList.add('hidden');
+            } catch (e) {
+                showToast("Signal Failed");
+            } finally {
+                isProcessing = false;
+                document.getElementById(`load-${type}`).classList.add('hidden');
+                document.getElementById('btn-create-private').disabled = false;
+                document.getElementById('btn-create-community').disabled = false;
+            }
         };
 
         // CHAT ENGINE
@@ -364,7 +388,7 @@
                         <p class="text-sm leading-relaxed mb-4 text-white/80">${sanitize(g.text)}</p>
                         ${g.image ? `<img src="${g.image}" class="w-full h-44 object-cover rounded-2xl border border-white/5 mb-4">` : ''}
                         <div class="flex gap-6 border-t border-white/5 pt-4">
-                           <button onclick="window.toggleVibe('${g.id}', ${JSON.stringify(vibes).replace(/"/g, '&quot;')})" 
+                           <button onclick="window.toggleVibe(this, '${g.id}', ${JSON.stringify(vibes).replace(/"/g, '&quot;')})"
                                    class="flex items-center gap-2 text-[10px] font-black tracking-tighter transition-all ${isVibed ? 'text-pink-500' : 'text-white/20 hover:text-white/40'}">
                                 <i data-lucide="heart" size="14" ${isVibed ? 'fill="currentColor"' : ''}></i> ${vibes.length} VIBES
                            </button>
@@ -379,14 +403,26 @@
         };
 
         // GIST ACTIONS
-        window.toggleVibe = async (id, current) => {
-            if(isProcessing) return;
+        let vibeProcessing = false;
+        window.toggleVibe = async (btn, id, current) => {
+            if(vibeProcessing) return;
+            vibeProcessing = true;
+            btn.disabled = true;
+
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'gists', id);
             let next = [...current];
             const idx = next.indexOf(user.uid);
             if(idx > -1) next.splice(idx, 1);
             else next.push(user.uid);
-            await updateDoc(ref, { vibes: next });
+
+            try {
+                await updateDoc(ref, { vibes: next });
+            } catch (e) {
+                showToast("Vibe failed.");
+            } finally {
+                vibeProcessing = false;
+                btn.disabled = false;
+            }
         };
 
         window.echoPost = (id) => {
@@ -416,40 +452,59 @@
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
             const input = document.getElementById('chat-input');
+            const sendButton = document.getElementById('btn-chat-send');
             if(!input.value.trim() || isProcessing) return;
+
             isProcessing = true;
-            document.getElementById('btn-chat-send').disabled = true;
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<div class="spinner"></div>';
 
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages'), {
-                text: input.value, sender: user.uid, createdAt: serverTimestamp(),
-                isGhost: isGhostMode, status: 'active',
-                replyTo: replyingTo ? { text: replyingTo.text } : null
-            });
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages'), {
+                    text: input.value, sender: user.uid, createdAt: serverTimestamp(),
+                    isGhost: isGhostMode, status: 'active',
+                    replyTo: replyingTo ? { text: replyingTo.text } : null
+                });
 
-            input.value = '';
-            input.style.height = 'auto';
-            replyingTo = null;
-            document.getElementById('reply-preview').classList.add('hidden');
-            isProcessing = false;
-            document.getElementById('btn-chat-send').disabled = false;
+                input.value = '';
+                input.style.height = 'auto';
+                replyingTo = null;
+                document.getElementById('reply-preview').classList.add('hidden');
+            } catch (e) {
+                showToast("Message failed to send.");
+            } finally {
+                isProcessing = false;
+                sendButton.disabled = false;
+                sendButton.innerHTML = '<i data-lucide="arrow-up" size="20"></i>';
+                lucide.createIcons();
+            }
         };
 
         document.getElementById('btn-submit-gist').onclick = async () => {
             const input = document.getElementById('gist-text-input');
+            const submitButton = document.getElementById('btn-submit-gist');
             if((!input.value.trim() && !pendingImage) || isProcessing) return;
+
             isProcessing = true;
-            document.getElementById('btn-submit-gist').disabled = true;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<div class="spinner-sm mr-2"></div> PUBLISHING...';
 
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'gists'), {
-                text: input.value, image: pendingImage, sender: user.uid, vibes: [], createdAt: serverTimestamp()
-            });
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'gists'), {
+                    text: input.value, image: pendingImage, sender: user.uid, vibes: [], createdAt: serverTimestamp()
+                });
 
-            input.value = '';
-            pendingImage = null;
-            document.getElementById('gist-img-preview-container').classList.add('hidden');
-            document.getElementById('btn-submit-gist').disabled = false;
-            window.closeGistModal();
-            isProcessing = false;
+                input.value = '';
+                pendingImage = null;
+                document.getElementById('gist-img-preview-container').classList.add('hidden');
+                window.closeGistModal();
+            } catch (e) {
+                showToast("Failed to publish gist.");
+            } finally {
+                isProcessing = false;
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'PUBLISH TO VOID';
+            }
         };
 
         // ASSETS
