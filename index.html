@@ -183,6 +183,25 @@
 
         lucide.createIcons();
 
+        const shareRoom = async (roomId) => {
+            const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
+            const text = `Join my secret chat on Ghostroom: #${roomId.toUpperCase()}`;
+            const title = 'Ghostroom Chat';
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title, text, url });
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        showToast("Couldn't share content.");
+                    }
+                }
+            } else {
+                navigator.clipboard.writeText(url);
+                showToast("LINK COPIED TO CLIPBOARD");
+            }
+        };
+
         // UTILS
         const showToast = (msg) => {
             const t = document.createElement('div');
@@ -193,6 +212,25 @@
         };
 
         const sanitize = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        const shareRoom = async (roomId) => {
+            const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
+            const text = `Join my secret chat on Ghostroom: #${roomId.toUpperCase()}`;
+            const title = 'Ghostroom Chat';
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title, text, url });
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        showToast("Couldn't share content.");
+                    }
+                }
+            } else {
+                navigator.clipboard.writeText(url);
+                showToast("LINK COPIED TO CLIPBOARD");
+            }
+        };
 
         // INTERNET MONITOR
         const updateOnlineStatus = () => {
@@ -237,7 +275,12 @@
 
             try {
                 const id = type === 'community' ? 'global' : Math.random().toString(36).substring(2, 10);
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id), { type, createdAt: serverTimestamp() }, { merge: true });
+                const roomData = {
+                    type,
+                    createdAt: serverTimestamp(),
+                    members: [user.uid]
+                };
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id), roomData, { merge: true });
                 await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', id), { roomId: id, type, timestamp: Date.now() });
                 window.location.hash = id;
             } catch (e) { showToast("Signal Failed"); }
@@ -252,6 +295,7 @@
             currentRoomId = roomId;
             window.changeScreen('chat');
             document.getElementById('chat-subtitle').textContent = `#${roomId.toUpperCase()}`;
+            document.getElementById('btn-copy-link').onclick = () => shareRoom(roomId);
             const msgRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId, 'messages');
             const q = query(msgRef, orderBy('createdAt', 'asc'), limit(60));
             
