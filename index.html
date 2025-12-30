@@ -36,13 +36,7 @@
         window.changeScreen = (name) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(`screen-${name}`).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            const navBtn = document.getElementById(`nav-${name}`);
-            if(navBtn) navBtn.classList.add('active');
-            document.getElementById('bottom-nav').style.display = name === 'chat' ? 'none' : 'flex';
         };
-        window.openGistModal = () => document.getElementById('modal-gist')?.classList.remove('hidden');
-        window.closeGistModal = () => document.getElementById('modal-gist')?.classList.add('hidden');
     </script>
 </head>
 <body>
@@ -74,47 +68,24 @@
             </button>
         </div>
 
-        <div class="mb-8">
-            <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 mb-4 px-2 flex items-center gap-2">
-                <i data-lucide="trending-up" size="12"></i> Global Pulse
-            </h4>
-            <div id="leaderboard" class="space-y-3">
-                <div class="card p-4 loading-shimmer opacity-10 h-16"></div>
-            </div>
-        </div>
-
         <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 mb-4 px-2">Recent Frequency</h4>
         <div id="history-container" class="space-y-3"></div>
     </div>
 
-    <!-- GIST FEED SCREEN -->
-    <div id="screen-gist" class="screen overflow-y-auto pb-32 hide-scroll">
-        <header class="sticky top-0 p-6 bg-black/80 backdrop-blur-xl z-10 flex justify-between items-end border-b border-white/5">
-            <div>
-                <h2 class="text-2xl font-black italic">GistMe</h2>
-                <p class="text-[10px] text-white/30 font-black uppercase tracking-widest">The Public Pulse</p>
-            </div>
-            <button onclick="window.openGistModal()" class="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
-                <i data-lucide="plus"></i>
-            </button>
-        </header>
-        <div id="gist-feed" class="p-4 space-y-6"></div>
-    </div>
-
     <!-- CHAT SCREEN -->
     <div id="screen-chat" class="screen">
-        <header class="p-6 flex items-center justify-between border-b border-white/5 bg-black/50 backdrop-blur-lg">
-            <button onclick="window.location.hash = ''" class="text-white/30"><i data-lucide="chevron-left"></i></button>
+        <header class="p-4 flex items-center justify-between border-b border-white/5 bg-black/50 backdrop-blur-lg">
+            <button onclick="window.location.hash = ''" class="text-white/30 p-2"><i data-lucide="chevron-left"></i></button>
             <div class="text-center">
                 <p class="text-[10px] font-black text-pink-500 uppercase tracking-[0.2em]" id="chat-title">Whisper Room</p>
                 <p class="text-[9px] text-white/20 font-bold" id="chat-subtitle">#000000</p>
-                <div class="text-[8px] text-white/20 font-bold mt-1 uppercase tracking-wider">Messages vanish after 24 hours</div>
+                <p class="text-[8px] text-white/20 font-bold mt-1 uppercase tracking-wider">Messages vanish after 24 hours</p>
             </div>
-            <button id="btn-copy-link" class="p-3 bg-white/5 rounded-2xl border border-white/10"><i data-lucide="share-2" size="16"></i></button>
+            <button id="btn-copy-link" class="p-2 bg-white/5 rounded-xl border border-white/10"><i data-lucide="share-2" size="16"></i></button>
         </header>
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 hide-scroll"></div>
         
-        <div id="reply-preview" class="hidden px-4 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center text-[10px]">
+        <div id="reply-preview" class="hidden px-4 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center text-[10px] context-bar">
             <div class="border-l-2 border-pink-500 pl-3">
                 <p class="text-white/40 uppercase font-black">Replying to</p>
                 <p id="reply-text" class="text-white/80 italic truncate max-w-[200px]"></p>
@@ -122,7 +93,7 @@
             <button id="btn-cancel-reply" class="p-2"><i data-lucide="x" size="14"></i></button>
         </div>
 
-        <div id="edit-preview" class="hidden px-4 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center text-[10px]">
+        <div id="edit-preview" class="hidden px-4 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center text-[10px] context-bar">
             <div class="border-l-2 border-yellow-500 pl-3">
                 <p class="text-white/40 uppercase font-black">Editing Message</p>
             </div>
@@ -130,7 +101,19 @@
         </div>
 
         <div class="p-4 pb-8 bg-black">
-            <form id="chat-form" class="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-[30px] focus-within:border-white/20 transition-colors">
+            <div id="identity-menu" class="hidden mb-2 p-3 bg-white/5 rounded-2xl">
+                <div class="text-[10px] font-bold uppercase text-white/30 mb-2">Choose Identity</div>
+                <div class="flex gap-2">
+                    <button id="identity-anon" class="flex-1 text-[10px] p-2 rounded-lg bg-white/10">Anonymous</button>
+                    <button id="identity-id" class="flex-1 text-[10px] p-2 rounded-lg bg-white/5">User ID</button>
+                    <button id="identity-custom-btn" class="flex-1 text-[10px] p-2 rounded-lg bg-white/5">Custom</button>
+                </div>
+                <input type="text" id="identity-custom-input" class="hidden w-full bg-transparent text-xs p-2 mt-2 border-b border-white/10" placeholder="Enter custom name...">
+            </div>
+            <form id="chat-form" class="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-[30px] focus-within:border-white/20" style="transition: transform 0.3s ease-in-out;">
+                <button type="button" id="btn-identity" class="w-10 h-10 rounded-full flex items-center justify-center text-white/20 transition-colors">
+                    <i data-lucide="user" size="18"></i>
+                </button>
                 <button type="button" id="btn-ghost" class="w-10 h-10 rounded-full flex items-center justify-center text-white/20 transition-colors">
                     <i data-lucide="ghost" size="18"></i>
                 </button>
@@ -141,29 +124,6 @@
             </form>
         </div>
     </div>
-
-    <!-- MODAL -->
-    <div id="modal-gist" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl p-6 hidden flex-col items-center justify-center">
-        <div class="w-full max-w-sm card p-8">
-            <button onclick="window.closeGistModal()" class="absolute top-6 right-6 text-white/20"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-black mb-6 italic text-center uppercase tracking-tighter">New Gist</h2>
-            <textarea id="gist-text-input" class="w-full h-32 bg-transparent text-white outline-none text-lg resize-none mb-6 placeholder:text-white/10" placeholder="Leak the tea..."></textarea>
-            <div id="gist-img-preview-container" class="hidden mb-6 relative">
-                <img id="gist-img-preview" class="w-full h-40 object-cover rounded-2xl">
-                <button id="btn-clear-img" class="absolute top-2 right-2 p-2 bg-black/60 rounded-full"><i data-lucide="x" size="12"></i></button>
-            </div>
-            <button id="btn-add-photo" class="w-full h-14 rounded-2xl bg-white/5 border border-dashed border-white/20 flex items-center justify-center gap-3 text-[10px] font-black uppercase text-white/40 mb-4">
-                <i data-lucide="camera" size="18"></i> Add Visual
-            </button>
-            <input type="file" id="gist-file-input" class="hidden" accept="image/*">
-            <button id="btn-submit-gist" class="w-full h-14 bg-white text-black rounded-2xl font-black text-sm disabled:opacity-50">PUBLISH TO VOID</button>
-        </div>
-    </div>
-
-    <nav id="bottom-nav">
-        <div onclick="window.changeScreen('home')" id="nav-home" class="nav-item active"><i data-lucide="hash"></i><span class="text-[8px] font-black uppercase tracking-widest">Rooms</span></div>
-        <div onclick="window.changeScreen('gist')" id="nav-gist" class="nav-item"><i data-lucide="globe"></i><span class="text-[8px] font-black uppercase tracking-widest">GistMe</span></div>
-    </nav>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -185,9 +145,22 @@
         let currentRoomId = null;
         let isGhostMode = false;
         let replyingTo = null;
+        let editMessageId = null;
         let pendingImage = null;
         let isProcessing = false;
-        let editingMessageId = null;
+        let senderIdentity = 'anon';
+        let customSenderName = '';
+
+        const editPreview = document.getElementById('edit-preview');
+        const btnCancelEdit = document.getElementById('btn-cancel-edit');
+        const btnIdentity = document.getElementById('btn-identity');
+        const identityMenu = document.getElementById('identity-menu');
+        const identityAnon = document.getElementById('identity-anon');
+        const identityId = document.getElementById('identity-id');
+        const identityCustomBtn = document.getElementById('identity-custom-btn');
+        const identityCustomInput = document.getElementById('identity-custom-input');
+        const chatInput = document.getElementById('chat-input');
+        const chatForm = document.getElementById('chat-form');
 
         lucide.createIcons();
 
@@ -217,7 +190,6 @@
                 user = u;
                 document.getElementById('user-id-display').textContent = `UID: ${u.uid.substring(0,6)}`;
                 loadHistory();
-                loadGists();
                 checkHash();
             } else {
                 signInAnonymously(auth);
@@ -226,10 +198,7 @@
 
         const checkHash = () => {
             const hash = window.location.hash.slice(1);
-            if (hash.startsWith('gist-')) {
-                window.changeScreen('gist');
-                // Could scroll to element here
-            } else if (hash) {
+            if (hash) {
                 initChat(hash);
             } else {
                 window.changeScreen('home');
@@ -271,6 +240,16 @@
             }
             document.getElementById('chat-subtitle').textContent = `#${roomId.toUpperCase()}`;
             const msgRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId, 'messages');
+
+            // Auto-delete messages older than 24 hours
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const oldMessagesQuery = query(msgRef, where('createdAt', '<', yesterday));
+            getDocs(oldMessagesQuery).then(snapshot => {
+                const batch = writeBatch(db);
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                batch.commit();
+            });
+
             const q = query(msgRef, orderBy('createdAt', 'asc'), limit(60));
             
             if (unsubChat) unsubChat();
@@ -280,29 +259,44 @@
                 snap.docs.forEach(docSnap => {
                     const m = { id: docSnap.id, ...docSnap.data() };
                     const isMe = m.sender === user.uid;
-
-                    const messageTimestamp = m.createdAt?.toDate();
-                    let isExpired = false;
-                    if (messageTimestamp) {
-                        const twentyFourHoursAgo = new Date().getTime() - (24 * 60 * 60 * 1000);
-                        if (messageTimestamp.getTime() < twentyFourHoursAgo) {
-                            isExpired = true;
-                        }
-                    }
-
-                    const isBurned = m.status === 'burned' || isExpired;
+                    const isBurned = m.status === 'burned';
                     
                     const wrapper = document.createElement('div');
                     wrapper.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} w-full`;
+
+                    let senderNameplate = '';
+                    if (!isMe) {
+                        if (m.identity === 'id') {
+                            senderNameplate = `<div class="text-[9px] text-white/30 font-bold mb-1 px-3">${m.sender.substring(0,6)}</div>`;
+                        } else if (m.identity === 'custom' && m.customName) {
+                            senderNameplate = `<div class="text-[9px] text-white/30 font-bold mb-1 px-3">${sanitize(m.customName)}</div>`;
+                        }
+                    }
                     
                     wrapper.innerHTML = `
+                        ${senderNameplate}
                         ${m.replyTo ? `<div class="text-[9px] text-white/20 mb-1 px-3">↳ ${sanitize(m.replyTo.text).substring(0,15)}...</div>` : ''}
                         <div class="msg-bubble ${isMe ? 'bg-pink-600' : 'bg-white/5 border border-white/10'} 
                              ${m.isGhost && !isBurned ? 'msg-ghost' : ''} ${isBurned ? 'msg-burned' : ''}" 
                              id="msg-${m.id}">
                             ${isBurned ? 'VANISHED' : sanitize(m.text)}
-                            ${m.edited ? '<span class="text-[9px] text-white/30 italic ml-2">(edited)</span>' : ''}
+                            ${m.editedAt ? `<span class="text-[9px] text-white/50 pl-2"> (edited)</span>` : ''}
                         </div>`;
+
+                    const bubble = wrapper.querySelector('.msg-bubble');
+
+                    // Double tap to edit
+                    let lastTap = 0;
+                    bubble.addEventListener('touchend', (e) => {
+                        const currentTime = new Date().getTime();
+                        const tapLength = currentTime - lastTap;
+                        if (tapLength < 300 && tapLength > 0) {
+                            if(isMe) setEdit(m);
+                            e.preventDefault();
+                        }
+                        lastTap = currentTime;
+                    });
+
 
                     // Swipe to Reply
                     let startX = 0;
@@ -317,12 +311,6 @@
                     wrapper.onclick = () => {
                         if (m.isGhost && !isBurned) revealGhost(m.id);
                     };
-
-                    if (isMe) {
-                        wrapper.ondblclick = () => {
-                            editMessage(m);
-                        };
-                    }
 
                     container.appendChild(wrapper);
                 });
@@ -344,101 +332,7 @@
             document.getElementById('reply-text').textContent = m.text;
             document.getElementById('reply-preview').classList.remove('hidden');
             document.getElementById('chat-input').focus();
-        };
-
-        const editMessage = (m) => {
-            editingMessageId = m.id;
-            document.getElementById('chat-input').value = m.text;
-            document.getElementById('edit-preview').classList.remove('hidden');
-            document.getElementById('btn-chat-send').innerHTML = '<i data-lucide="check" size="20"></i>';
-            lucide.createIcons();
-            document.getElementById('chat-input').focus();
-        };
-
-        const cancelEdit = () => {
-            editingMessageId = null;
-            document.getElementById('chat-input').value = '';
-            document.getElementById('edit-preview').classList.add('hidden');
-            document.getElementById('btn-chat-send').innerHTML = '<i data-lucide="arrow-up" size="20"></i>';
-            lucide.createIcons();
-        };
-
-        // GISTME CORE
-        const loadGists = () => {
-            const gistRef = collection(db, 'artifacts', appId, 'public', 'data', 'gists');
-            const q = query(gistRef, orderBy('createdAt', 'desc'), limit(40));
-            onSnapshot(q, (snap) => {
-                const container = document.getElementById('gist-feed');
-                const leaderboard = document.getElementById('leaderboard');
-                container.innerHTML = '';
-                
-                const gists = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                
-                // Update Leaderboard (Top 3 by Vibes)
-                const topGists = [...gists].sort((a,b) => (b.vibes?.length || 0) - (a.vibes?.length || 0)).slice(0, 3);
-                leaderboard.innerHTML = '';
-                topGists.forEach((tg, i) => {
-                    const row = document.createElement('div');
-                    row.className = 'card p-4 flex justify-between items-center';
-                    row.innerHTML = `<div class="flex items-center gap-3">
-                        <span class="text-white/20 font-black italic">0${i+1}</span>
-                        <p class="text-[11px] font-bold truncate max-w-[150px]">${sanitize(tg.text)}</p>
-                    </div>
-                    <span class="text-[9px] font-black text-pink-500">${tg.vibes?.length || 0} VIBES</span>`;
-                    leaderboard.appendChild(row);
-                });
-
-                // Render Feed
-                gists.forEach(g => {
-                    const isCreator = g.sender === user.uid;
-                    const vibes = g.vibes || [];
-                    const isVibed = vibes.includes(user.uid);
-                    
-                    const el = document.createElement('div');
-                    el.className = `card p-6 ${isVibed ? 'border-pink-500/20' : ''}`;
-                    el.innerHTML = `
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-500 to-indigo-600"></div>
-                                <span class="text-[10px] font-black text-white/40 tracking-widest uppercase">anon_${g.sender?.substring(0,4)}</span>
-                            </div>
-                            ${isCreator ? `<button onclick="window.deleteGist('${g.id}')" class="text-white/10"><i data-lucide="trash-2" size="14"></i></button>` : ''}
-                        </div>
-                        <p class="text-sm leading-relaxed mb-4 text-white/80">${sanitize(g.text)}</p>
-                        ${g.image ? `<img src="${g.image}" class="w-full h-44 object-cover rounded-2xl border border-white/5 mb-4">` : ''}
-                        <div class="flex gap-6 border-t border-white/5 pt-4">
-                           <button onclick="window.toggleVibe('${g.id}', ${JSON.stringify(vibes).replace(/"/g, '&quot;')})" 
-                                   class="flex items-center gap-2 text-[10px] font-black tracking-tighter transition-all ${isVibed ? 'text-pink-500' : 'text-white/20 hover:text-white/40'}">
-                                <i data-lucide="heart" size="14" ${isVibed ? 'fill="currentColor"' : ''}></i> ${vibes.length} VIBES
-                           </button>
-                           <button onclick="window.echoPost('${g.id}')" class="flex items-center gap-2 text-[10px] font-black text-white/20 hover:text-white/40">
-                                <i data-lucide="share" size="14"></i> ECHO
-                           </button>
-                        </div>`;
-                    container.appendChild(el);
-                });
-                lucide.createIcons();
-            });
-        };
-
-        // GIST ACTIONS
-        window.toggleVibe = async (id, current) => {
-            if(isProcessing) return;
-            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'gists', id);
-            let next = [...current];
-            const idx = next.indexOf(user.uid);
-            if(idx > -1) next.splice(idx, 1);
-            else next.push(user.uid);
-            await updateDoc(ref, { vibes: next });
-        };
-
-        window.echoPost = (id) => {
-            navigator.clipboard.writeText(`${window.location.href}#gist-${id}`);
-            showToast("LINK ECHOED TO VOID");
-        };
-
-        window.deleteGist = async (id) => {
-            if(confirm("Erase post?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'gists', id));
+            slideContextBars();
         };
 
         // EVENT BINDINGS
@@ -463,60 +357,26 @@
             isProcessing = true;
             document.getElementById('btn-chat-send').disabled = true;
 
-            if (editingMessageId) {
-                const messageRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages', editingMessageId);
-                await updateDoc(messageRef, {
-                    text: input.value,
-                    edited: true
-                });
-                cancelEdit();
+            if (editMessageId) {
+                const msgRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages', editMessageId);
+                await updateDoc(msgRef, { text: input.value, editedAt: serverTimestamp() });
             } else {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'messages'), {
                     text: input.value, sender: user.uid, createdAt: serverTimestamp(),
                     isGhost: isGhostMode, status: 'active',
-                    replyTo: replyingTo ? { text: replyingTo.text } : null
+                    replyTo: replyingTo ? { text: replyingTo.text } : null,
+                    identity: senderIdentity,
+                    customName: customSenderName
                 });
-                input.value = '';
-                input.style.height = 'auto';
-                replyingTo = null;
-                document.getElementById('reply-preview').classList.add('hidden');
             }
-
-            isProcessing = false;
-            document.getElementById('btn-chat-send').disabled = false;
-        };
-
-        document.getElementById('btn-submit-gist').onclick = async () => {
-            const input = document.getElementById('gist-text-input');
-            if((!input.value.trim() && !pendingImage) || isProcessing) return;
-            isProcessing = true;
-            document.getElementById('btn-submit-gist').disabled = true;
-
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'gists'), {
-                text: input.value, image: pendingImage, sender: user.uid, vibes: [], createdAt: serverTimestamp()
-            });
 
             input.value = '';
-            pendingImage = null;
-            document.getElementById('gist-img-preview-container').classList.add('hidden');
-            document.getElementById('btn-submit-gist').disabled = false;
-            window.closeGistModal();
+            input.style.height = 'auto';
+            replyingTo = null;
+            document.getElementById('reply-preview').classList.add('hidden');
+            cancelEdit();
             isProcessing = false;
-        };
-
-        // ASSETS
-        document.getElementById('btn-add-photo').onclick = () => document.getElementById('gist-file-input').click();
-        document.getElementById('gist-file-input').onchange = (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    pendingImage = ev.target.result;
-                    document.getElementById('gist-img-preview').src = pendingImage;
-                    document.getElementById('gist-img-preview-container').classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
+            document.getElementById('btn-chat-send').disabled = false;
         };
 
         document.getElementById('chat-input').addEventListener('input', function() {
@@ -549,12 +409,90 @@
             });
         };
 
-        document.getElementById('btn-cancel-reply').onclick = () => {
+        const cancelReply = () => {
             replyingTo = null;
             document.getElementById('reply-preview').classList.add('hidden');
         };
+        document.getElementById('btn-cancel-reply').onclick = () => {
+            cancelReply();
+            slideContextBars();
+        };
 
-        document.getElementById('btn-cancel-edit').onclick = cancelEdit;
+        // Identity Menu
+        btnIdentity.onclick = () => {
+            identityMenu.classList.toggle('hidden');
+        };
+
+        const setActiveIdentityButton = (activeBtn) => {
+            [identityAnon, identityId, identityCustomBtn].forEach(btn => {
+                btn.classList.remove('bg-white/10');
+                btn.classList.add('bg-white/5');
+            });
+            activeBtn.classList.add('bg-white/10');
+            activeBtn.classList.remove('bg-white/5');
+        };
+
+        identityAnon.onclick = () => {
+            senderIdentity = 'anon';
+            identityCustomInput.classList.add('hidden');
+            setActiveIdentityButton(identityAnon);
+        };
+
+        identityId.onclick = () => {
+            senderIdentity = 'id';
+            identityCustomInput.classList.add('hidden');
+            setActiveIdentityButton(identityId);
+        };
+
+        identityCustomBtn.onclick = () => {
+            senderIdentity = 'custom';
+            identityCustomInput.classList.remove('hidden');
+            identityCustomInput.focus();
+            setActiveIdentityButton(identityCustomBtn);
+        };
+
+        identityCustomInput.oninput = (e) => {
+            customSenderName = e.target.value;
+        };
+
+        const setEdit = (m) => {
+            cancelReply();
+            editMessageId = m.id;
+            chatInput.value = m.text;
+            chatInput.focus();
+            editPreview.classList.remove('hidden');
+            slideContextBars();
+        };
+
+        const cancelEdit = () => {
+            editMessageId = null;
+            chatInput.value = '';
+            editPreview.classList.add('hidden');
+            slideContextBars();
+        };
+
+        btnCancelEdit.onclick = cancelEdit;
+
+        const slideContextBars = () => {
+            const bars = document.querySelectorAll('.context-bar');
+            let visibleBar = null;
+            bars.forEach(bar => {
+                if (!bar.classList.contains('hidden')) {
+                    visibleBar = bar;
+                }
+            });
+
+            if (visibleBar) {
+                visibleBar.style.transform = 'translateY(0)';
+                chatForm.style.transform = `translateY(-${visibleBar.offsetHeight}px)`;
+            } else {
+                chatForm.style.transform = 'translateY(0)';
+            }
+        };
+
+        // Expose functions for Playwright testing
+        window.test = { setEdit, cancelEdit, cancelReply };
+
     </script>
 </body>
 </html>
