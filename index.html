@@ -53,18 +53,12 @@
             <div id="connection-dot" class="w-2 h-2 rounded-full bg-green-500 mt-4 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
         </header>
 
-        <div class="grid grid-cols-2 gap-4 mb-10">
-            <button id="btn-create-private" class="card p-6 text-left disabled:opacity-50">
-                <i data-lucide="zap" class="text-pink-500 mb-3"></i>
-                <h3 class="font-bold text-sm">Secret Room</h3>
-                <p class="text-[10px] text-white/30 font-black uppercase tracking-wider">Burn on View</p>
-                <div id="load-private" class="hidden absolute inset-0 loading-shimmer opacity-40"></div>
-            </button>
-            <button id="btn-create-community" class="card p-6 text-left disabled:opacity-50">
-                <i data-lucide="flame" class="text-orange-500 mb-3"></i>
-                <h3 class="font-bold text-sm">Public Vibe</h3>
-                <p class="text-[10px] text-white/30 font-black uppercase tracking-wider">Global Chat</p>
-                <div id="load-public" class="hidden absolute inset-0 loading-shimmer opacity-40"></div>
+        <div class="mb-10">
+            <button id="btn-create-room" class="card w-full p-6 text-left disabled:opacity-50">
+                <i data-lucide="box" class="text-purple-400 mb-3"></i>
+                <h3 class="font-bold text-sm">Open a Void</h3>
+                <p class="text-[10px] text-white/30 font-black uppercase tracking-wider">Create a new chat room</p>
+                <div id="load-create" class="hidden absolute inset-0 loading-shimmer opacity-40"></div>
             </button>
         </div>
 
@@ -83,6 +77,7 @@
             </div>
             <button id="btn-copy-link" class="p-2 bg-white/5 rounded-xl border border-white/10"><i data-lucide="share-2" size="16"></i></button>
         </header>
+        <div id="prompt-container" class="p-4 text-center text-xs text-white/30"></div>
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 hide-scroll"></div>
         
         <div id="reply-preview" class="hidden px-4 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center text-[10px] context-bar">
@@ -128,7 +123,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, serverTimestamp, updateDoc, deleteDoc, query, orderBy, limit, getDoc, getDocs, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCEUDD0iB4iGFSDoC0a3wCXF8PT098Su3w",
@@ -210,22 +205,22 @@
         const createRoom = async (type) => {
             if(!user || isProcessing) return;
             isProcessing = true;
-            document.getElementById(`load-${type}`).classList.remove('hidden');
+            document.getElementById('load-create').classList.remove('hidden');
 
             try {
-                const id = type === 'community' ? 'global' : Math.random().toString(36).substring(2, 10);
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id), { type, createdAt: serverTimestamp() }, { merge: true });
-                await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', id), { roomId: id, type, timestamp: Date.now() });
+                const id = Math.random().toString(36).substring(2, 10);
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id), { type: 'private', createdAt: serverTimestamp() }, { merge: true });
+                await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', id), { roomId: id, type: 'private', timestamp: Date.now() });
                 window.location.hash = id;
             } catch (e) { showToast("Signal Failed"); }
             
             isProcessing = false;
-            document.getElementById(`load-${type}`).classList.add('hidden');
+            document.getElementById('load-create').classList.add('hidden');
         };
 
         // CHAT ENGINE
         let unsubChat = null;
-        const initChat = async (roomId) => {
+        window.initChat = async (roomId) => {
             currentRoomId = roomId;
             window.changeScreen('chat');
 
@@ -336,8 +331,7 @@
         };
 
         // EVENT BINDINGS
-        document.getElementById('btn-create-private').onclick = () => createRoom('private');
-        document.getElementById('btn-create-community').onclick = () => createRoom('community');
+        document.getElementById('btn-create-room').onclick = () => createRoom('private');
 
         document.getElementById('btn-copy-link').onclick = () => {
             navigator.clipboard.writeText(window.location.href);
@@ -492,6 +486,64 @@
 
         // Expose functions for Playwright testing
         window.test = { setEdit, cancelEdit, cancelReply };
+
+        const prompts = [
+            "What's a secret you've never told a soul? 🤫",
+            "Write a letter to someone you'll never see again. 💌",
+            "What is the one thing you regret most this year? 😔",
+            "If you could say one thing to your past self, what would it be? 🗣️",
+            "What does the void feel like today? 🌌",
+            "Describe your current mood using only three words. 📝",
+            "If this message was the last thing you ever wrote, what would it say? ✍️",
+            "What is the sound of your silence right now? 🎧",
+            "Type a truth, then a lie. Let the void decide which is which. 🤔",
+            "Leave a piece of advice for the next ghost who wanders in. 👻",
+            "Predict something that will happen in the next 24 hours. 🔮",
+            "Shout into the void: [YOUR MESSAGE HERE] 📣",
+            "Click a ghost message to reveal it... but be quick. ⏳",
+            "This room will vanish in 24 hours. Don't get attached. 💔",
+            "Toggle Ghost Mode to keep your words hidden until they're ready to burn. 🔥"
+        ];
+
+        let promptInterval = null;
+
+        const typeWriter = (text, i) => {
+            if (i < text.length) {
+                chatInput.placeholder = text.substring(0, i + 1);
+                setTimeout(() => typeWriter(text, i + 1), 50);
+            }
+        };
+
+        const startPrompts = () => {
+            if (promptInterval) clearInterval(promptInterval);
+            let lastPrompt = -1;
+            const nextPrompt = () => {
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * prompts.length);
+                } while (randomIndex === lastPrompt);
+                lastPrompt = randomIndex;
+                const prompt = prompts[randomIndex];
+                document.getElementById('prompt-container').textContent = prompt;
+                typeWriter(prompt, 0);
+            };
+            nextPrompt();
+            promptInterval = setInterval(nextPrompt, 5000);
+        };
+
+        chatInput.addEventListener('focus', () => {
+            if (promptInterval) clearInterval(promptInterval);
+            document.getElementById('prompt-container').textContent = '';
+            chatInput.placeholder = 'Type a message...';
+        });
+
+        // Wrap initChat to start prompts
+        const originalInitChat = window.initChat;
+        window.initChat = (roomId) => {
+            originalInitChat(roomId);
+            startPrompts();
+        };
+
 
     </script>
 </body>
